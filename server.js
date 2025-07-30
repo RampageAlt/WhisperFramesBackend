@@ -27,8 +27,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const uploadStream = cloudinary.uploader.upload_stream(
     {
       public_id: publicId,
-      overwrite: true,
-      folder: "", // optional: set a folder
+      overwrite: true
     },
     (error, result) => {
       if (error) {
@@ -43,11 +42,11 @@ app.post("/upload", upload.single("file"), (req, res) => {
   stream.pipe(uploadStream);
 });
 
-// Route to get list of photos
+// Fixed /photos endpoint to return all image URLs
 app.get("/photos", async (req, res) => {
   try {
     const result = await cloudinary.search
-      .expression("folder=''") // change if you're using folders
+      .expression("resource_type:image")
       .sort_by("created_at", "desc")
       .max_results(30)
       .execute();
@@ -60,8 +59,8 @@ app.get("/photos", async (req, res) => {
   }
 });
 
-// Required for Render: listen on 0.0.0.0
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });
+
