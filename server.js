@@ -11,41 +11,57 @@ app.use(cors());
 app.use(express.json());
 
 cloudinary.config({
-  cloud_name: "dn678kfox",
-  api_key: '177897192841486',
-  api_secret: 'ia8aifblT9WabtUc01H0YSSTxPg'
+  cloud_name: "dn678kfox", // your cloud name
+  api_key: "177897192841486", // your API key
+  api_secret: "ia8aifblT9WabtUc01H0YSSTxPg" // your API secret
 });
 
+// Upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
-  const publicId = req.body.public_id || undefined;
+  const publicId = req.body.public_id;
 
-  if (!req.file) {
-    return res.status(400).json({ error: "Missing file" });
-  }
-
-  const uploadOptions = {
-    overwrite: true,
-    folder: "", // Add folder name if needed, else leave blank
-  };
-
-  if (publicId) {
-    uploadOptions.public_id = publicId;
+  if (!req.file || !publicId) {
+    return res.status(400).json({ error: "Missing file or public_id" });
   }
 
   const uploadStream = cloudinary.uploader.upload_stream(
-    uploadOptions,
+    {
+      public_id: publicId,
+      overwrite: true,
+      folder: "", // optional: set a folder
+    },
     (error, result) => {
       if (error) {
         console.error("Upload Error:", error);
         return res.status(500).json({ error: error.message });
       }
-      res.json({ url: result.secure_url, public_id: result.public_id });
+      res.json(result);
     }
   );
 
-  Readable.from(req.file.buffer).pipe(uploadStream);
+  const stream = Readable.from(req.file.buffer);
+  stream.pipe(uploadStream);
 });
 
-app.listen(3000, () => {
-  console.log("✅ Server running at http://localhost:3000");
+// Route to get list of photos
+app.get("/photos", async (req, res) => {
+  try {
+    const result = await cloudinary.search
+      .expression("folder=''") // change if you're using folders
+      .sort_by("created_at", "desc")
+      .max_results(30)
+      .execute();
+
+    const urls = result.resources.map(file => file.secure_url);
+    res.json(urls);
+  } catch (err) {
+    console.error("Fetch Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Required for Render: listen on 0.0.0.0
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
